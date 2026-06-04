@@ -73,7 +73,7 @@ quoted per the spec:
 | Archive path | `X-Keywords` value |
 |---|---|
 | `Inbox/foo.eml` | `Inbox` |
-| `Inbox/ARCHIVAGE ALAIN/foo.eml` | `"Inbox/ARCHIVAGE ALAIN"` |
+| `Inbox/ARCHIVE PROJETS/foo.eml` | `"Inbox/ARCHIVE PROJETS"` |
 | `Comptabilité/Banques/foo.eml` | `Comptabilité/Banques` |
 | `Ressources Humaines/foo.eml` | `"Ressources Humaines"` |
 
@@ -133,7 +133,7 @@ same source re-emit the same zone definitions.
 ## Example output
 
 Headers injected by the script for an email originally located at
-`Sent!1/0000003020-Accident avec un tiers.eml`:
+`Sent!1/0000003020-Compte rendu de reunion.eml`:
 
 ```
 Status: O
@@ -141,11 +141,11 @@ X-Status: A
 X-Keywords: Sent
 ```
 
-And for `Inbox/ARCHIVAGE ALAIN/0000017149-Fwd_ Dossier DETR 2025.eml`:
+And for `Inbox/ARCHIVE PROJETS/0000017149-Fwd_ Demande de devis.eml`:
 
 ```
 Status: O
-X-Keywords: "Inbox/ARCHIVAGE ALAIN"
+X-Keywords: "Inbox/ARCHIVE PROJETS"
 ```
 
 
