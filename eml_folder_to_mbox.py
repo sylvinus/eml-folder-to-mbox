@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import email.utils
 import os
+import posixpath
 import re
 import shutil
 import sys
@@ -33,6 +34,17 @@ from email.parser import BytesHeaderParser
 _DUP_RE = re.compile(r"!\d+$")
 _MBOXRD_FROM_RE = re.compile(rb"(?m)^(>*From )")
 _META_HDRS = (b"status", b"x-status", b"x-keywords", b"x-gmail-labels")
+
+# Characters Windows forbids in filenames, plus control chars. Original message
+# filenames routinely contain emoji and other symbols (📅, →, …) which are fine,
+# but reserved chars like : ? * " < > | would make open() fail on Windows.
+_WIN_RESERVED_RE = re.compile(r'[\x00-\x1f<>:"/\\|?*]')
+
+
+def safe_filename(name):
+    """Make an `others/` filename safe to create on any OS (notably Windows)."""
+    cleaned = _WIN_RESERVED_RE.sub("_", name).rstrip(" .")
+    return cleaned or "unnamed"
 
 
 def normalize_label(parts):
@@ -162,7 +174,11 @@ def convert(archive_path, out_dir, verbose=False):
             parts = [p for p in member.name.split("/") if p and p != "."]
             if not parts:
                 continue
-            ext = os.path.splitext(parts[-1])[1].lower()
+            # Tar names always use "/" as separator, so any backslash in a name
+            # is a literal filename character. Use posixpath (not os.path, which
+            # is ntpath on Windows and would treat "\" as a separator, breaking
+            # extension detection for names like "…_!\.eml").
+            ext = posixpath.splitext(parts[-1])[1].lower()
             label = normalize_label(parts[:-1])
             stream = tar.extractfile(member)
             if stream is None:
@@ -203,7 +219,7 @@ def convert(archive_path, out_dir, verbose=False):
 
             else:
                 os.makedirs(others_dir, exist_ok=True)
-                with open(os.path.join(others_dir, parts[-1].replace("/", "_")), "wb") as fh:
+                with open(os.path.join(others_dir, safe_filename(parts[-1])), "wb") as fh:
                     shutil.copyfileobj(stream, fh)
                 others_count += 1
 
@@ -225,6 +241,15 @@ def main():
     parser.add_argument("archive", help="Input .tgz archive path")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
+
+    # Folder labels can contain non-ASCII characters (e.g. "Aurélie"). On
+    # Windows the console defaults to a legacy code page (cp1252) and printing
+    # them raises UnicodeEncodeError, so force UTF-8 with a safe fallback.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
 
     if not os.path.isfile(args.archive):
         sys.exit(f"error: archive not found: {args.archive}")
